@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Escritório Virtual — DARO Tech</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+  :root{
+    --navy-950:#000000; --navy-900:#0a0a0a; --navy-800:#131313; --navy-700:#1f1f1f; --navy-600:#2b2b2b;
+    --cyan-400:#4ee8ff; --cyan-500:#1ec8e8; --cyan-glow:rgba(78,232,255,0.35);
+    --coral-500:#ff6a55; --coral-600:#ef5443;
+    --text-hi:#f5f5f5; --text-mid:#a8a8a8; --text-dim:#6e6e6e;
+    --ok:#3ddc84;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Space Grotesk', system-ui, sans-serif;
+    background:var(--navy-950); color:var(--text-hi);
+    overflow:hidden; position:fixed; inset:0; width:100%; height:100%;
+  }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  button{ font-family:inherit; cursor:pointer; }
+  input{ font-family:inherit; }
+
+  .clip-sm{ clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); }
+  .clip-md{ clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px); }
+
+  .btn{
+    text-decoration:none; font-weight:700; font-size:14px; letter-spacing:.3px;
+    padding:12px 26px; display:inline-flex; align-items:center; gap:9px; border:none;
+    clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+    transition:filter .15s, transform .1s;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{ background:linear-gradient(90deg, var(--coral-500), var(--coral-600)); color:#fff; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-ghost{ background:transparent; border:1px solid var(--navy-600); color:var(--text-hi); }
+  .btn-ghost:hover{ border-color:var(--cyan-500); color:var(--cyan-400); }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; }
+
+  /* ================= LOGIN ================= */
+  #login-screen{
+    position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse 70% 60% at 50% 30%, #0d1420 0%, #000 70%);
+    padding:20px;
+  }
+  .login-card{
+    width:100%; max-width:420px; background:var(--navy-900); border:1px solid var(--navy-700);
+    padding:36px 30px; text-align:center;
+  }
+  .login-card img{ width:64px; margin:0 auto 14px; display:block; filter:drop-shadow(0 0 24px var(--cyan-glow)); }
+  .login-card h1{ font-size:20px; font-weight:700; }
+  .login-card .sub{ font-size:13px; color:var(--text-mid); margin-top:6px; margin-bottom:26px; }
+  .field-label{ font-size:11px; letter-spacing:1.3px; color:var(--text-dim); text-align:left; margin-bottom:8px; }
+  #name-input{
+    width:100%; background:var(--navy-950); border:1px solid var(--navy-600); color:var(--text-hi);
+    padding:13px 14px; font-size:15px; margin-bottom:22px; outline:none;
+  }
+  #name-input:focus{ border-color:var(--cyan-500); }
+  .avatar-choice{ display:flex; gap:12px; margin-bottom:26px; }
+  .avatar-opt{
+    flex:1; background:var(--navy-950); border:1px solid var(--navy-600); padding:16px 10px;
+    display:flex; flex-direction:column; align-items:center; gap:8px; transition:border-color .15s;
+  }
+  .avatar-opt .emoji{ font-size:30px; }
+  .avatar-opt span{ font-size:12px; color:var(--text-mid); }
+  .avatar-opt.selected{ border-color:var(--cyan-400); box-shadow:0 0 0 1px var(--cyan-400) inset; }
+  .avatar-opt.selected span{ color:var(--cyan-400); }
+  #enter-btn{ width:100%; justify-content:center; font-size:15px; padding:15px; }
+  #login-error{ color:var(--coral-500); font-size:12.5px; margin-top:14px; min-height:16px; }
+
+  .conn-status{
+    display:inline-flex; align-items:center; gap:7px; font-size:11px; letter-spacing:.6px;
+    color:var(--text-dim); margin-top:20px; justify-content:center;
+  }
+  .conn-dot{ width:7px; height:7px; border-radius:50%; background:var(--text-dim); flex-shrink:0; }
+  .conn-status.connecting .conn-dot{ background:#e8c34e; box-shadow:0 0 6px #e8c34e; animation:pulse 1s infinite; }
+  .conn-status.online .conn-dot{ background:var(--ok); box-shadow:0 0 6px var(--ok); }
+  .conn-status.offline .conn-dot{ background:var(--coral-500); box-shadow:0 0 6px var(--coral-500); }
+  @keyframes pulse{ 50%{ opacity:.35; } }
+
+  /* ================= APP SHELL ================= */
+  #app{ position:fixed; inset:0; display:none; flex-direction:column; }
+  #app.active{ display:flex; }
+
+  #topbar{
+    display:flex; align-items:center; justify-content:space-between; padding:10px 16px;
+    background:rgba(5,9,18,0.85); backdrop-filter:blur(10px); border-bottom:1px solid var(--navy-700);
+    z-index:30; flex-wrap:wrap; gap:8px;
+  }
+  #topbar .brand{ display:flex; align-items:center; gap:8px; }
+  #topbar .brand img{ width:22px; }
+  #topbar .brand-word{ font-weight:700; font-size:13.5px; }
+  #room-badge{
+    font-size:11px; color:var(--cyan-400); border:1px solid var(--navy-600); padding:5px 12px;
+    letter-spacing:.6px;
+  }
+  #topbar-right{ display:flex; align-items:center; gap:10px; }
+  #online-count{ font-size:11.5px; color:var(--text-mid); }
+  #leave-btn{ padding:8px 16px; font-size:12px; }
+
+  /* ================= MAP ================= */
+  #map-wrap{ position:relative; flex:1; overflow:hidden; }
+  #map{
+    position:absolute; inset:0; margin:auto; width:min(100%, 1400px); height:min(100%, 1400px * 0.62);
+    max-width:1400px;
+  }
+  .room-zone{
+    position:absolute; border:1px solid var(--navy-700); background:rgba(255,255,255,0.015);
+    transition:border-color .3s, background .3s;
+  }
+  .room-zone .rz-label{
+    position:absolute; top:10px; left:14px; font-size:11px; letter-spacing:1px; color:var(--text-dim);
+    display:flex; align-items:center; gap:7px; pointer-events:none;
+  }
+  .room-zone .rz-count{
+    font-size:10px; color:var(--cyan-400); background:rgba(0,0,0,.5); padding:2px 7px; margin-left:4px;
+  }
+  .room-zone.active-room{ border-color:var(--cyan-500); background:rgba(78,232,255,0.035); }
+
+  .avatar{
+    position:absolute; width:46px; height:46px; margin-left:-23px; margin-top:-23px;
+    display:flex; flex-direction:column; align-items:center; transition:left .08s linear, top .08s linear;
+    z-index:5; pointer-events:none;
+  }
+  .avatar .circle{
+    width:40px; height:40px; border-radius:50%; background:var(--navy-800); border:2px solid var(--cyan-500);
+    display:flex; align-items:center; justify-content:center; font-size:19px;
+    box-shadow:0 0 14px rgba(78,232,255,0.25); position:relative;
+  }
+  .avatar.self .circle{ border-color:var(--coral-500); box-shadow:0 0 14px rgba(255,106,85,0.3); }
+  .avatar.away .circle{ opacity:.4; filter:grayscale(.6); }
+  .avatar .away-icon{ position:absolute; top:-6px; right:-6px; font-size:13px; }
+  .avatar .cam-dot{
+    position:absolute; bottom:-2px; right:-2px; width:11px; height:11px; border-radius:50%;
+    background:var(--ok); border:2px solid var(--navy-950); display:none;
+  }
+  .avatar.has-cam .cam-dot{ display:block; }
+  .avatar .name-tag{
+    margin-top:4px; font-size:10.5px; background:rgba(0,0,0,.65); padding:2px 8px; white-space:nowrap;
+    max-width:110px; overflow:hidden; text-overflow:ellipsis;
+  }
+  .avatar .status-tag{
+    margin-top:2px; font-size:9.5px; color:var(--cyan-400); background:rgba(0,0,0,.5); padding:1px 7px;
+    white-space:nowrap; max-width:110px; overflow:hidden; text-overflow:ellipsis;
+  }
+  .avatar .bubble{
+    position:absolute; bottom:52px; left:50%; transform:translateX(-50%); font-size:22px;
+    background:rgba(0,0,0,.55); border-radius:50%; padding:6px; opacity:0; transition:opacity .2s;
+  }
+  .avatar .bubble.show{ opacity:1; }
+
+  /* ================= VIDEO STRIP (top-right) ================= */
+  #video-strip{
+    position:absolute; top:64px; right:14px; z-index:25; display:flex; flex-direction:column; gap:8px;
+    max-height:70vh; overflow-y:auto;
+  }
+  .video-tile{
+    width:150px; height:100px; background:var(--navy-900); border:1px solid var(--navy-700);
+    position:relative; overflow:hidden;
+  }
+  .video-tile video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .video-tile .vt-name{
+    position:absolute; bottom:0; left:0; right:0; font-size:10px; padding:3px 7px;
+    background:rgba(0,0,0,.6);
+  }
+  .video-tile.self video{ transform:scaleX(-1); }
+
+  /* ================= BOTTOM BAR (controls) ================= */
+  #bottombar{
+    position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:30;
+    display:flex; align-items:center; gap:8px; background:rgba(5,9,18,0.85); backdrop-filter:blur(10px);
+    border:1px solid var(--navy-700); padding:9px; border-radius:40px;
+  }
+  .ctl{
+    width:42px; height:42px; border-radius:50%; border:1px solid var(--navy-600); background:var(--navy-900);
+    color:var(--text-hi); display:flex; align-items:center; justify-content:center; font-size:17px;
+    transition:background .15s, border-color .15s; position:relative;
+  }
+  .ctl:hover{ border-color:var(--cyan-500); }
+  .ctl.on{ background:var(--cyan-500); border-color:var(--cyan-500); color:#001820; }
+  .ctl.danger{ background:var(--coral-500); border-color:var(--coral-500); }
+  .ctl .badge{
+    position:absolute; top:-4px; right:-4px; background:var(--navy-950); color:var(--cyan-400);
+    font-size:9px; padding:1px 4px; border-radius:8px; display:none;
+  }
+
+  /* emote picker */
+  #emote-pop{
+    position:absolute; bottom:70px; display:none; background:var(--navy-900); border:1px solid var(--navy-700);
+    padding:10px; gap:6px; grid-template-columns:repeat(4,1fr);
+  }
+  #emote-pop.show{ display:grid; }
+  #emote-pop button{ background:transparent; border:none; font-size:22px; padding:6px; border-radius:6px; }
+  #emote-pop button:hover{ background:var(--navy-700); }
+
+  /* status pin popover */
+  #status-pop{
+    position:absolute; bottom:70px; display:none; background:var(--navy-900); border:1px solid var(--navy-700);
+    padding:12px; width:240px;
+  }
+  #status-pop.show{ display:block; }
+  #status-pop input{
+    width:100%; background:var(--navy-950); border:1px solid var(--navy-600); color:var(--text-hi);
+    padding:9px 10px; font-size:13px; margin-bottom:8px; outline:none;
+  }
+  #status-pop .row{ display:flex; gap:8px; }
+  #status-pop .row button{ flex:1; padding:8px; font-size:12px; }
+
+  /* ================= CHAT ================= */
+  #chat-toggle{
+    position:absolute; left:14px; bottom:16px; z-index:30; background:var(--navy-900); border:1px solid var(--navy-700);
+    padding:11px 16px; display:flex; align-items:center; gap:8px; font-size:13px;
+  }
+  #chat-toggle .unread{
+    background:var(--coral-500); color:#fff; font-size:10px; padding:1px 6px; border-radius:10px; display:none;
+  }
+  #chat-panel{
+    position:absolute; left:14px; bottom:16px; width:min(320px, calc(100vw - 28px)); height:min(400px, 60vh);
+    background:rgba(10,10,10,0.92); backdrop-filter:blur(10px); border:1px solid var(--navy-700);
+    z-index:31; display:none; flex-direction:column;
+  }
+  #chat-panel.show{ display:flex; }
+  #chat-head{
+    display:flex; justify-content:space-between; align-items:center; padding:10px 14px;
+    border-bottom:1px solid var(--navy-700); font-size:12px; color:var(--text-mid);
+  }
+  #chat-head button{ background:none; border:none; color:var(--text-dim); font-size:16px; }
+  #chat-messages{ flex:1; overflow-y:auto; padding:10px 14px; display:flex; flex-direction:column; gap:8px; }
+  .chat-msg{ font-size:13px; line-height:1.4; }
+  .chat-msg .who{ color:var(--cyan-400); font-weight:600; margin-right:6px; }
+  .chat-msg.system{ color:var(--text-dim); font-size:11.5px; font-style:italic; }
+  #chat-form{ display:flex; border-top:1px solid var(--navy-700); }
+  #chat-input{
+    flex:1; background:transparent; border:none; color:var(--text-hi); padding:12px 14px; font-size:13px; outline:none;
+  }
+  #chat-form button{ background:none; border:none; color:var(--cyan-400); padding:0 16px; font-size:14px; }
+
+  /* ================= MOBILE JOYSTICK ================= */
+  #joystick-zone{
+    position:absolute; left:20px; bottom:120px; width:120px; height:120px; z-index:29; display:none;
+    touch-action:none;
+  }
+  #joystick-base{
+    width:100%; height:100%; border-radius:50%; background:rgba(255,255,255,0.04); border:1px solid var(--navy-600);
+  }
+  #joystick-nub{
+    position:absolute; top:50%; left:50%; width:46px; height:46px; margin:-23px; border-radius:50%;
+    background:rgba(78,232,255,0.25); border:1px solid var(--cyan-400);
+  }
+  @media (pointer:coarse){ #joystick-zone{ display:block; } }
+
+  /* connection toast */
+  #conn-toast{
+    position:absolute; top:60px; left:50%; transform:translateX(-50%); z-index:40;
+    background:var(--navy-900); border:1px solid var(--coral-500); padding:9px 18px; font-size:12.5px;
+    display:none; align-items:center; gap:8px;
+  }
+  #conn-toast.show{ display:flex; }
+  #conn-toast button{ background:none; border:1px solid var(--navy-600); color:var(--text-hi); padding:4px 10px; font-size:11px; }
+
+  ::-webkit-scrollbar{ width:6px; }
+  ::-webkit-scrollbar-thumb{ background:var(--navy-600); }
+
+  @media (max-width:760px){
+    #video-strip{ top:60px; right:8px; }
+    .video-tile{ width:100px; height:68px; }
+    #chat-panel{ height:50vh; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================= LOGIN ============================= -->
+<div id="login-screen">
+  <div class="login-card clip-md">
+    <img src="images/logo-icon.png" alt="DARO Tech">
+    <h1>Escritório Virtual — DARO Tech</h1>
+    <p class="sub">Digite seu nome, escolha seu avatar e entre.</p>
+
+    <div class="field-label mono">SEU NOME</div>
+    <input id="name-input" type="text" maxlength="24" placeholder="Como você quer aparecer" autocomplete="off">
+
+    <div class="field-label mono">AVATAR</div>
+    <div class="avatar-choice">
+      <div class="avatar-opt selected clip-sm" data-avatar="menino">
+        <span class="emoji">🧑</span><span>Homem</span>
+      </div>
+      <div class="avatar-opt clip-sm" data-avatar="menina">
+        <span class="emoji">👩</span><span>Mulher</span>
+      </div>
+    </div>
+
+    <button id="enter-btn" class="btn btn-primary clip-sm">Entrar →</button>
+    <div id="login-error"></div>
+    <div id="conn-status" class="conn-status connecting">
+      <span class="conn-dot"></span><span id="conn-label" class="mono">CONECTANDO AO SERVIDOR…</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= APP ============================= -->
+<div id="app">
+  <div id="topbar">
+    <div class="brand">
+      <img src="images/logo-icon.png" alt="DARO Tech">
+      <span class="brand-word">DARO DESK</span>
+    </div>
+    <div id="room-badge" class="mono">RECEPÇÃO</div>
+    <div id="topbar-right">
+      <span id="online-count" class="mono">0 online</span>
+      <button id="leave-btn" class="btn btn-ghost clip-sm">Sair</button>
+    </div>
+  </div>
+
+  <div id="map-wrap">
+    <div id="conn-toast">
+      <span class="conn-dot" style="background:var(--coral-500)"></span>
+      <span id="conn-toast-text">Conexão perdida. Tentando reconectar…</span>
+      <button id="conn-retry">Tentar agora</button>
+    </div>
+
+    <div id="map"></div>
+    <div id="video-strip"></div>
+
+    <div id="joystick-zone">
+      <div id="joystick-base"></div>
+      <div id="joystick-nub"></div>
+    </div>
+
+    <button id="chat-toggle" class="clip-sm">💬 Chat <span id="chat-unread" class="unread">0</span></button>
+    <div id="chat-panel" class="clip-sm">
+      <div id="chat-head">
+        <span id="chat-room-label" class="mono">RECEPÇÃO</span>
+        <button id="chat-close">✕</button>
+      </div>
+      <div id="chat-messages"></div>
+      <form id="chat-form">
+        <input id="chat-input" maxlength="500" placeholder="Escreva uma mensagem…" autocomplete="off">
+        <button type="submit">Enviar</button>
+      </form>
+    </div>
+
+    <div id="emote-pop" class="clip-sm"></div>
+    <div id="status-pop" class="clip-sm">
+      <input id="status-input" maxlength="60" placeholder="Fixar como status…">
+      <div class="row">
+        <button id="status-save" class="btn btn-primary clip-sm">Salvar</button>
+        <button id="status-clear" class="btn btn-ghost clip-sm">Limpar</button>
+      </div>
+    </div>
+
+    <div id="bottombar">
+      <div id="ctl-mic" class="ctl">🎤</div>
+      <div id="ctl-cam" class="ctl">📷</div>
+      <div id="ctl-screen" class="ctl">🖥️</div>
+      <div id="ctl-status" class="ctl">📌</div>
+      <div id="ctl-emote" class="ctl">😀</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ---------------------------------------------------------------------------
+// Configuração / salas
+// ---------------------------------------------------------------------------
+const ROOMS = [
+  { id:'recepcao', name:'Recepção',                 icon:'🛎️', x:2,  y:6,  w:30, h:40 },
+  { id:'diretoria', name:'Diretoria',                icon:'🏢', x:35, y:6,  w:30, h:40 },
+  { id:'reuniao',  name:'Sala de Reunião',           icon:'📋', x:68, y:6,  w:30, h:40 },
+  { id:'jogos',    name:'Sala de Jogos',             icon:'🎮', x:2,  y:54, w:30, h:40 },
+  { id:'copa',     name:'Copa / Descanso',           icon:'☕', x:35, y:54, w:30, h:40 },
+  { id:'audio',    name:'Sala Áudio Conferência',    icon:'🎧', x:68, y:54, w:30, h:40 },
+];
+const ROOM_BY_ID = Object.fromEntries(ROOMS.map(r => [r.id, r]));
+const EMOTES = ['😀','👍','❤️','😂','😮','👋','🎉','✅'];
+const AWAY_MS = 3 * 60 * 1000;
+const MOVE_SPEED = 0.9; // % do mapa por frame (~60fps)
+
+let socket = null;
+let self = { id:null, name:'', avatar:'menino', x:50, y:50, room:'recepcao', dir:'down' };
+let players = {}; // id -> player state
+let selectedAvatar = 'menino';
+let currentRoom = 'recepcao';
+let lastActivity = Date.now();
+
+// DOM refs
+const $ = (id) => document.getElementById(id);
+const loginScreen = $('login-screen');
+const app = $('app');
+const nameInput = $('name-input');
+const enterBtn = $('enter-btn');
+const loginError = $('login-error');
+const connStatus = $('conn-status');
+const connLabel = $('conn-label');
+const mapEl = $('map');
+const videoStrip = $('video-strip');
+const roomBadge = $('room-badge');
+const onlineCount = $('online-count');
+const connToast = $('conn-toast');
+const connToastText = $('conn-toast-text');
+
+// ---------------------------------------------------------------------------
+// Login: seleção de avatar
+// ---------------------------------------------------------------------------
+document.querySelectorAll('.avatar-opt').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.avatar-opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedAvatar = el.dataset.avatar;
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Conexão com o servidor
+// ---------------------------------------------------------------------------
+let serverUrl = null;
+let socketReady = false;
+
+async function loadConfigAndConnect(){
+  setConnUI('connecting', 'CARREGANDO CONFIGURAÇÃO…');
+  try{
+    const res = await fetch('config.json', { cache:'no-store' });
+    if(!res.ok) throw new Error('config.json indisponível (' + res.status + ')');
+    const cfg = await res.json();
+    if(!cfg.SERVER_URL) throw new Error('SERVER_URL ausente em config.json');
+    serverUrl = cfg.SERVER_URL;
+  }catch(err){
+    console.error(err);
+    setConnUI('offline', 'NÃO FOI POSSÍVEL LER config.json');
+    loginError.textContent = 'Não consegui carregar a configuração do servidor. Tente recarregar a página.';
+    return;
+  }
+  connect();
+}
+
+function connect(){
+  setConnUI('connecting', 'CONECTANDO AO SERVIDOR…');
+  socket = io(serverUrl, {
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 8000,
+    timeout: 12000,
+  });
+
+  socket.on('connect', () => {
+    socketReady = true;
+    setConnUI('online', 'CONECTADO — ' + socket.io.engine.transport.name.toUpperCase());
+    hideConnToast();
+    loginError.textContent = '';
+    // se já tínhamos entrado antes (reconexão), re-envia o join automaticamente
+    if(self.id && self.name){ doJoin(true); }
+  });
+
+  socket.on('connect_error', (err) => {
+    console.error('connect_error', err);
+    setConnUI('offline', 'FALHA AO CONECTAR — TENTANDO NOVAMENTE…');
+    if(app.classList.contains('active')) showConnToast('Não foi possível falar com o servidor. Tentando de novo…');
+  });
+
+  socket.on('disconnect', (reason) => {
+    setConnUI('offline', 'DESCONECTADO (' + reason + ')');
+    if(app.classList.contains('active')) showConnToast('Conexão perdida. Tentando reconectar…');
+  });
+
+  socket.on('reconnect_attempt', () => {
+    setConnUI('connecting', 'RECONECTANDO…');
+  });
+
+  wireGameEvents();
+}
+
+function setConnUI(state, label){
+  connStatus.className = 'conn-status ' + state;
+  connLabel.textContent = label;
+  enterBtn.disabled = (state !== 'online');
+}
+
+function showConnToast(text){
+  connToastText.textContent = text;
+  connToast.classList.add('show');
+}
+function hideConnToast(){ connToast.classList.remove('show'); }
+
+$('conn-retry').addEventListener('click', () => {
+  if(socket) socket.connect();
+});
+
+// ---------------------------------------------------------------------------
+// Entrar no escritório
+// ---------------------------------------------------------------------------
+function doJoin(isReconnect){
+  const name = isReconnect ? self.name : nameInput.value.trim();
+  if(!name){ loginError.textContent = 'Digite um nome pra entrar.'; return; }
+  if(!socketReady){ loginError.textContent = 'Ainda conectando ao servidor, aguarde…'; return; }
+
+  socket.emit('join', { name, avatar: selectedAvatar }, (resp) => {
+    if(!resp || !resp.ok){
+      loginError.textContent = (resp && resp.error) || 'Não foi possível entrar. Tente novamente.';
+      return;
+    }
+    self.id = resp.self.id;
+    self.name = resp.self.name;
+    self.avatar = resp.self.avatar;
+    self.x = resp.self.x; self.y = resp.self.y; self.room = resp.self.room;
+    currentRoom = self.room;
+
+    players = {};
+    resp.players.forEach(p => { players[p.id] = p; });
+
+    if(!isReconnect){
+      loginScreen.style.display = 'none';
+      app.classList.add('active');
+      buildRoomZones();
+      startMovementLoop();
+    }
+    renderAll();
+    addSystemMsg('Você entrou em ' + ROOM_BY_ID[self.room].name + '.');
+  });
+}
+
+enterBtn.addEventListener('click', () => doJoin(false));
+nameInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') doJoin(false); });
+
+// ---------------------------------------------------------------------------
+// Eventos vindos do servidor
+// ---------------------------------------------------------------------------
+function wireGameEvents(){
+  socket.on('player:joined', (p) => {
+    players[p.id] = p;
+    renderAll();
+    addSystemMsg(p.name + ' entrou.');
+  });
+
+  socket.on('player:left', ({id}) => {
+    const p = players[id];
+    closePeer(id);
+    delete players[id];
+    removeAvatarEl(id);
+    if(p) addSystemMsg(p.name + ' saiu.');
+    updateOnlineCount();
+  });
+
+  socket.on('player:moved', (data) => {
+    const p = players[data.id];
+    if(!p) return;
+    p.x = data.x; p.y = data.y; p.dir = data.dir; p.room = data.room;
+    updateAvatarPosition(p);
+  });
+
+  socket.on('player:room-changed', ({id, to}) => {
+    const p = players[id];
+    if(!p) return;
+    p.room = to;
+    if(id !== self.id) reconcilePeersForRoom();
+    highlightActiveRoom();
+  });
+
+  socket.on('player:away', ({id, away}) => {
+    const p = players[id];
+    if(!p) return;
+    p.away = away;
+    const el = document.getElementById('avatar-' + id);
+    if(el) el.classList.toggle('away', away);
+  });
+
+  socket.on('status:update', ({id, text}) => {
+    const p = players[id]; if(!p) return;
+    p.status = text;
+    const el = document.querySelector('#avatar-' + id + ' .status-tag');
+    if(el){ el.textContent = text; el.style.display = text ? 'block' : 'none'; }
+  });
+
+  socket.on('chat:message', (msg) => {
+    addChatMsg(msg);
+  });
+
+  socket.on('emote', ({id, emoji}) => {
+    showBubble(id, emoji);
+  });
+
+  socket.on('media:state', ({id, audio, video, screen}) => {
+    const p = players[id]; if(!p) return;
+    p.audio = audio; p.video = video; p.screen = screen;
+    const el = document.getElementById('avatar-' + id);
+    if(el) el.classList.toggle('has-cam', video || screen);
+    reconcilePeersForRoom(); // pode precisar (re)negociar mídia
+  });
+
+  socket.on('rooms:summary', (summary) => {
+    summary.forEach(s => {
+      const el = document.querySelector('.room-zone[data-room="'+s.id+'"] .rz-count');
+      if(el) el.textContent = s.count;
+    });
+    updateOnlineCount();
+  });
+
+  // ---- sinalização WebRTC ----
+  socket.on('webrtc:offer', async ({from, sdp}) => {
+    const pc = getOrCreatePeer(from);
+    await pc.setRemoteDescription(sdp);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('webrtc:answer', { to: from, sdp: pc.localDescription });
+  });
+  socket.on('webrtc:answer', async ({from, sdp}) => {
+    const pc = peers[from]; if(!pc) return;
+    await pc.setRemoteDescription(sdp);
+  });
+  socket.on('webrtc:ice', async ({from, candidate}) => {
+    const pc = peers[from]; if(!pc) return;
+    try{ await pc.addIceCandidate(candidate); }catch(e){ console.warn('ICE erro', e); }
+  });
+}
+
+function updateOnlineCount(){
+  onlineCount.textContent = Object.keys(players).length + ' online';
+}
+
+// ---------------------------------------------------------------------------
+// Renderização do mapa
+// ---------------------------------------------------------------------------
+function buildRoomZones(){
+  mapEl.innerHTML = '';
+  ROOMS.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'room-zone';
+    div.dataset.room = r.id;
+    div.style.left = r.x + '%'; div.style.top = r.y + '%';
+    div.style.width = r.w + '%'; div.style.height = r.h + '%';
+    div.innerHTML = '<div class="rz-label mono">'+r.icon+' '+r.name.toUpperCase()+'<span class="rz-count">0</span></div>';
+    mapEl.appendChild(div);
+  });
+  highlightActiveRoom();
+}
+
+function highlightActiveRoom(){
+  document.querySelectorAll('.room-zone').forEach(z => {
+    z.classList.toggle('active-room', z.dataset.room === self.room);
+  });
+  roomBadge.textContent = ROOM_BY_ID[self.room].name.toUpperCase();
+  $('chat-room-label').textContent = ROOM_BY_ID[self.room].name.toUpperCase();
+}
+
+function renderAll(){
+  Object.values(players).forEach(p => updateAvatarPosition(p));
+  highlightActiveRoom();
+  updateOnlineCount();
+}
+
+function avatarEmoji(p){ return p.avatar === 'menina' ? '👩' : '🧑'; }
+
+function updateAvatarPosition(p){
+  let el = document.getElementById('avatar-' + p.id);
+  if(!el){
+    el = document.createElement('div');
+    el.className = 'avatar' + (p.id === self.id ? ' self' : '');
+    el.id = 'avatar-' + p.id;
+    el.innerHTML =
+      '<div class="bubble"></div>' +
+      '<div class="circle"><span class="emo">'+avatarEmoji(p)+'</span><span class="cam-dot"></span><span class="away-icon" style="display:none">💤</span></div>' +
+      '<div class="name-tag"></div>' +
+      '<div class="status-tag" style="display:none"></div>';
+    mapEl.appendChild(el);
+  }
+  el.style.left = p.x + '%';
+  el.style.top = p.y + '%';
+  el.classList.toggle('away', !!p.away);
+  el.classList.toggle('has-cam', !!(p.video || p.screen));
+  el.querySelector('.name-tag').textContent = p.name;
+  const st = el.querySelector('.status-tag');
+  st.textContent = p.status || '';
+  st.style.display = p.status ? 'block' : 'none';
+}
+
+function removeAvatarEl(id){
+  const el = document.getElementById('avatar-' + id);
+  if(el) el.remove();
+}
+
+function showBubble(id, emoji){
+  const el = document.querySelector('#avatar-' + id + ' .bubble');
+  if(!el) return;
+  el.textContent = emoji;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ---------------------------------------------------------------------------
+// Movimento — teclado (desktop) + joystick (mobile)
+// ---------------------------------------------------------------------------
+const keys = { up:false, down:false, left:false, right:false };
+let joyVec = { x:0, y:0 };
+
+window.addEventListener('keydown', (e) => {
+  markActivity();
+  if(['ArrowUp','w','W'].includes(e.key)) keys.up = true;
+  if(['ArrowDown','s','S'].includes(e.key)) keys.down = true;
+  if(['ArrowLeft','a','A'].includes(e.key)) keys.left = true;
+  if(['ArrowRight','d','D'].includes(e.key)) keys.right = true;
+});
+window.addEventListener('keyup', (e) => {
+  if(['ArrowUp','w','W'].includes(e.key)) keys.up = false;
+  if(['ArrowDown','s','S'].includes(e.key)) keys.down = false;
+  if(['ArrowLeft','a','A'].includes(e.key)) keys.left = false;
+  if(['ArrowRight','d','D'].includes(e.key)) keys.right = false;
+});
+
+// joystick touch
+(function(){
+  const zone = $('joystick-zone'), nub = $('joystick-nub');
+  let dragging = false, originX = 0, originY = 0;
+  const MAXR = 40;
+
+  function start(e){
+    dragging = true;
+    const t = e.touches ? e.touches[0] : e;
+    const rect = zone.getBoundingClientRect();
+    originX = rect.left + rect.width/2; originY = rect.top + rect.height/2;
+    markActivity();
+  }
+  function move(e){
+    if(!dragging) return;
+    const t = e.touches ? e.touches[0] : e;
+    let dx = t.clientX - originX, dy = t.clientY - originY;
+    const dist = Math.min(MAXR, Math.hypot(dx,dy));
+    const ang = Math.atan2(dy,dx);
+    const nx = Math.cos(ang) * dist, ny = Math.sin(ang) * dist;
+    nub.style.transform = 'translate('+nx+'px,'+ny+'px)';
+    joyVec.x = nx / MAXR; joyVec.y = ny / MAXR;
+    markActivity();
+  }
+  function end(){
+    dragging = false; joyVec.x = 0; joyVec.y = 0;
+    nub.style.transform = 'translate(0,0)';
+  }
+  zone.addEventListener('touchstart', start, {passive:true});
+  zone.addEventListener('touchmove', move, {passive:true});
+  zone.addEventListener('touchend', end);
+  zone.addEventListener('mousedown', start);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+})();
+
+function markActivity(){
+  lastActivity = Date.now();
+}
+
+let lastSentRoom = null;
+function startMovementLoop(){
+  function tick(){
+    let dx = 0, dy = 0;
+    if(keys.up) dy -= 1;
+    if(keys.down) dy += 1;
+    if(keys.left) dx -= 1;
+    if(keys.right) dx += 1;
+    if(joyVec.x || joyVec.y){ dx += joyVec.x; dy += joyVec.y; }
+
+    if(dx !== 0 || dy !== 0){
+      const len = Math.hypot(dx,dy) || 1;
+      self.x = Math.max(0, Math.min(100, self.x + (dx/len) * MOVE_SPEED));
+      self.y = Math.max(0, Math.min(100, self.y + (dy/len) * MOVE_SPEED));
+      self.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+
+      const zone = detectRoom(self.x, self.y);
+      if(zone) self.room = zone;
+
+      updateAvatarPosition(Object.assign({id:self.id}, self, players[self.id]||{}, self));
+      if(socket && socketReady){
+        socket.emit('move', { x:self.x, y:self.y, dir:self.dir, room: self.room });
+      }
+      if(self.room !== lastSentRoom){
+        lastSentRoom = self.room;
+        highlightActiveRoom();
+        reconcilePeersForRoom();
+      }
+      markActivity();
+    }
+
+    // away automático no cliente (visual otimista; servidor também controla)
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function detectRoom(x,y){
+  for(const r of ROOMS){
+    if(x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return r.id;
+  }
+  return null; // no corredor — mantém a última sala
+}
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
+let unread = 0;
+$('chat-toggle').addEventListener('click', () => {
+  $('chat-panel').classList.add('show');
+  $('chat-toggle').style.display = 'none';
+  unread = 0; $('chat-unread').style.display = 'none';
+});
+$('chat-close').addEventListener('click', () => {
+  $('chat-panel').classList.remove('show');
+  $('chat-toggle').style.display = 'flex';
+});
+$('chat-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $('chat-input');
+  const text = input.value.trim();
+  if(!text || !socket) return;
+  socket.emit('chat:send', { text });
+  input.value = '';
+});
+
+function addChatMsg(msg){
+  const box = $('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = '<span class="who">'+escapeHtml(msg.name)+':</span>'+escapeHtml(msg.text);
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  if(!$('chat-panel').classList.contains('show')){
+    unread++; $('chat-unread').style.display = 'inline-block'; $('chat-unread').textContent = unread;
+  }
+}
+function addSystemMsg(text){
+  const box = $('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg system';
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------------------------------------------------------------------------
+// Emote picker
+// ---------------------------------------------------------------------------
+const emotePop = $('emote-pop');
+EMOTES.forEach(e => {
+  const b = document.createElement('button');
+  b.textContent = e;
+  b.addEventListener('click', () => {
+    socket.emit('emote', { emoji: e });
+    showBubble(self.id, e);
+    emotePop.classList.remove('show');
+  });
+  emotePop.appendChild(b);
+});
+$('ctl-emote').addEventListener('click', (ev) => {
+  positionPopover(emotePop, ev.currentTarget);
+  emotePop.classList.toggle('show');
+  $('status-pop').classList.remove('show');
+});
+
+// ---------------------------------------------------------------------------
+// Status pin
+// ---------------------------------------------------------------------------
+const statusPop = $('status-pop');
+$('ctl-status').addEventListener('click', (ev) => {
+  positionPopover(statusPop, ev.currentTarget);
+  statusPop.classList.toggle('show');
+  emotePop.classList.remove('show');
+});
+$('status-save').addEventListener('click', () => {
+  const text = $('status-input').value.trim();
+  socket.emit('status:pin', { text });
+  statusPop.classList.remove('show');
+});
+$('status-clear').addEventListener('click', () => {
+  $('status-input').value = '';
+  socket.emit('status:pin', { text: '' });
+  statusPop.classList.remove('show');
+});
+
+function positionPopover(pop, anchor){
+  const rect = anchor.getBoundingClientRect();
+  pop.style.left = Math.max(10, rect.left - 60) + 'px';
+}
+
+// ---------------------------------------------------------------------------
+// Sair
+// ---------------------------------------------------------------------------
+$('leave-btn').addEventListener('click', () => {
+  closeAllPeers();
+  if(socket) socket.disconnect();
+  app.classList.remove('active');
+  loginScreen.style.display = 'flex';
+  mapEl.innerHTML = '';
+  videoStrip.innerHTML = '';
+  players = {};
+  self = { id:null, name:'', avatar:selectedAvatar, x:50, y:50, room:'recepcao', dir:'down' };
+  connect();
+});
+
+// ---------------------------------------------------------------------------
+// WebRTC — mesh por sala, iniciador determinístico por ordem de socket.id
+// ---------------------------------------------------------------------------
+const peers = {}; // id -> RTCPeerConnection
+let localStream = null;
+let screenStream = null;
+let micOn = false, camOn = false, screenOn = false;
+
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
+};
+
+function peersInSameRoom(){
+  return Object.values(players).filter(p => p.id !== self.id && p.room === self.room).map(p => p.id);
+}
+
+function shouldInitiate(remoteId){
+  // evita glare: só quem tem o menor id cria a oferta
+  return self.id < remoteId;
+}
+
+function getOrCreatePeer(remoteId){
+  if(peers[remoteId]) return peers[remoteId];
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+  peers[remoteId] = pc;
+
+  if(localStream){
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  }
+
+  pc.onicecandidate = (e) => {
+    if(e.candidate) socket.emit('webrtc:ice', { to: remoteId, candidate: e.candidate });
+  };
+  pc.ontrack = (e) => {
+    addRemoteVideoTile(remoteId, e.streams[0]);
+  };
+  pc.onconnectionstatechange = () => {
+    if(['failed','closed','disconnected'].includes(pc.connectionState)){
+      // deixa o loop de reconciliação decidir se recria
+    }
+  };
+  return pc;
+}
+
+async function connectToPeer(remoteId){
+  const pc = getOrCreatePeer(remoteId);
+  if(!shouldInitiate(remoteId)) return; // o outro lado manda a oferta
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit('webrtc:offer', { to: remoteId, sdp: pc.localDescription });
+}
+
+function closePeer(id){
+  const pc = peers[id];
+  if(pc){ pc.close(); delete peers[id]; }
+  const tile = document.getElementById('vtile-' + id);
+  if(tile) tile.remove();
+}
+function closeAllPeers(){
+  Object.keys(peers).forEach(closePeer);
+}
+
+function reconcilePeersForRoom(){
+  const wanted = new Set(peersInSameRoom());
+  // fecha quem não está mais na sala
+  Object.keys(peers).forEach(id => { if(!wanted.has(id)) closePeer(id); });
+  // conecta com quem está e ainda não tem peer
+  if(micOn || camOn || screenOn){
+    wanted.forEach(id => { if(!peers[id]) connectToPeer(id); });
+  }
+}
+
+function addRemoteVideoTile(id, stream){
+  let tile = document.getElementById('vtile-' + id);
+  if(!tile){
+    tile = document.createElement('div');
+    tile.className = 'video-tile clip-sm';
+    tile.id = 'vtile-' + id;
+    const p = players[id];
+    tile.innerHTML = '<video autoplay playsinline></video><div class="vt-name">'+(p?escapeHtml(p.name):'')+'</div>';
+    videoStrip.appendChild(tile);
+  }
+  tile.querySelector('video').srcObject = stream;
+}
+
+async function refreshLocalTracksOnPeers(){
+  const tracks = localStream ? localStream.getTracks() : [];
+  for(const id in peers){
+    const pc = peers[id];
+    const senders = pc.getSenders();
+    // remove senders de faixas que não existem mais
+    senders.forEach(s => { if(s.track && !tracks.includes(s.track)) pc.removeTrack(s); });
+    // adiciona faixas novas
+    tracks.forEach(t => {
+      if(!senders.find(s => s.track === t)) pc.addTrack(t, localStream);
+    });
+  }
+}
+
+async function toggleMic(){
+  try{
+    if(!micOn){
+      if(!localStream) localStream = new MediaStream();
+      const audioTrack = (await navigator.mediaDevices.getUserMedia({audio:true})).getAudioTracks()[0];
+      localStream.addTrack(audioTrack);
+      micOn = true;
+    }else{
+      localStream.getAudioTracks().forEach(t => { t.stop(); localStream.removeTrack(t); });
+      micOn = false;
+    }
+    $('ctl-mic').classList.toggle('on', micOn);
+    await refreshLocalTracksOnPeers();
+    emitMediaState();
+    reconcilePeersForRoom();
+  }catch(err){
+    console.error('mic erro', err);
+    alert('Não consegui acessar o microfone. Verifique a permissão do navegador.');
+  }
+}
+
+async function toggleCam(){
+  try{
+    if(!camOn){
+      if(!localStream) localStream = new MediaStream();
+      const videoTrack = (await navigator.mediaDevices.getUserMedia({video:true})).getVideoTracks()[0];
+      localStream.addTrack(videoTrack);
+      camOn = true;
+      addRemoteVideoTile(self.id, localStream);
+      document.getElementById('vtile-'+self.id).classList.add('self');
+    }else{
+      localStream.getVideoTracks().forEach(t => { t.stop(); localStream.removeTrack(t); });
+      camOn = false;
+      const tile = document.getElementById('vtile-'+self.id);
+      if(tile && !screenOn) tile.remove();
+    }
+    $('ctl-cam').classList.toggle('on', camOn);
+    document.getElementById('avatar-'+self.id)?.classList.toggle('has-cam', camOn || screenOn);
+    await refreshLocalTracksOnPeers();
+    emitMediaState();
+    reconcilePeersForRoom();
+  }catch(err){
+    console.error('cam erro', err);
+    alert('Não consegui acessar a câmera. Verifique a permissão do navegador.');
+  }
+}
+
+async function toggleScreen(){
+  try{
+    if(!screenOn){
+      screenStream = await navigator.mediaDevices.getDisplayMedia({video:true});
+      const track = screenStream.getVideoTracks()[0];
+      track.onended = () => toggleScreen(); // usuário parou pelo painel do navegador
+      if(!localStream) localStream = new MediaStream();
+      // tela substitui a faixa de vídeo da câmera enquanto ativa
+      localStream.getVideoTracks().forEach(t => { localStream.removeTrack(t); });
+      localStream.addTrack(track);
+      screenOn = true;
+      addRemoteVideoTile(self.id, localStream);
+    }else{
+      if(screenStream) screenStream.getTracks().forEach(t => t.stop());
+      localStream.getVideoTracks().forEach(t => localStream.removeTrack(t));
+      screenOn = false;
+      if(!camOn){
+        const tile = document.getElementById('vtile-'+self.id);
+        if(tile) tile.remove();
+      }
+    }
+    $('ctl-screen').classList.toggle('on', screenOn);
+    document.getElementById('avatar-'+self.id)?.classList.toggle('has-cam', camOn || screenOn);
+    await refreshLocalTracksOnPeers();
+    emitMediaState();
+    reconcilePeersForRoom();
+  }catch(err){
+    console.error('screen share erro/cancelado', err);
+  }
+}
+
+function emitMediaState(){
+  if(socket) socket.emit('media:state', { audio: micOn, video: camOn, screen: screenOn });
+}
+
+$('ctl-mic').addEventListener('click', toggleMic);
+$('ctl-cam').addEventListener('click', toggleCam);
+$('ctl-screen').addEventListener('click', toggleScreen);
+
+// ---------------------------------------------------------------------------
+// Início
+// ---------------------------------------------------------------------------
+loadConfigAndConnect();
+
+})();
+</script>
+</body>
+</html>
