@@ -547,7 +547,7 @@
           <button class="sl-btn" id="sl-full" title="Tela cheia"><svg class="i" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
           <button class="sl-btn" id="sl-close" title="Fechar (Esc)"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         </div>
-        <div id="sl-stage"><video id="sl-video" autoplay playsinline muted></video></div>
+        <div id="sl-stage"><video id="sl-video" autoplay playsinline muted disablepictureinpicture></video></div>
         <div class="sl-controls">
           <button class="sl-btn" id="sl-out" title="Diminuir zoom"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-4-4"/></svg></button>
           <span id="sl-zoom">100%</span>
@@ -1744,7 +1744,7 @@ function addVideoTile(id, stream, isScreen, reattach){
     tile.className = 'video-tile' + (id === self.id ? ' self' : '');
     tile.id = 'vtile-' + id;
     tile.title = 'Clique para ampliar';
-    tile.innerHTML = '<video autoplay playsinline muted></video><div class="vt-name"></div><span class="vt-zoom">' + ZOOM_ICON + '</span>';
+    tile.innerHTML = '<video autoplay playsinline muted disablepictureinpicture></video><div class="vt-name"></div><span class="vt-zoom">' + ZOOM_ICON + '</span>';
     tile.addEventListener('click', (e) => { e.stopPropagation(); openSpotlight(id); });
     videoStrip.appendChild(tile);
     reattach = true;
